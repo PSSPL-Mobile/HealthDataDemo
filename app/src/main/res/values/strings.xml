@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name" translatable="false">Health Data Demo</string>
+    <string name="app_name_2">Health Data Demo</string>
+    <string name="bluetooth_not_supported" translatable="false">Bluetooth is not supported on this device</string>
+    <string name="bluetooth_required" translatable="false">Bluetooth is required for this app</string>
+    <string name="bluetooth_connect_permission_required" translatable="false">BLUETOOTH_CONNECT permission is required</string>
+    <string name="permissions_granted">Permissions granted</string>
+    <string name="permissions_required">Permissions required for Bluetooth</string>
+    <string name="gps_not_enabled">GPS is still not enabled, please enable it</string>
+    <string name="menu_content_description">Menu</string>
+    <string name="settings_content_description">Settings</string>
+    <string name="history">History</string>
+    <string name="heart_icon">Heart Icon</string>
+    <string name="heart_rate_with_args">Heart Rate: %1s BPM</string>
+    <string name="enable_notifications">Enable Notifications</string>
+    <string name="bleScanAndConnectScreen">bleScanAndConnectScreen</string>
+    <string name="settingScreen">settingScreen</string>
+    <string name="historyScreen">historyScreen</string>
+    <string name="appStartNavigation">appStartNavigation</string>
+</resources>
