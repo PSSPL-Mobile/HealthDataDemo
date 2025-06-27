@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     //id("kotlin-kapt") // If you're using kapt alongside KSP
-    id("com.google.devtools.ksp") version "2.1.21-2.0.2"
+    id("com.google.devtools.ksp") version "2.2.0-2.0.2"
 }
 
 android {
