@@ -25,21 +25,47 @@ import kotlinx.coroutines.flow.StateFlow
 import java.util.UUID
 import javax.inject.Inject
 
-class BleServerManager @Inject constructor(val context: Context) {
+/***
+ * Name : BleServerManager.kt
+ * Author : Prakash Software Pvt Ltd
+ * Date : 30 Jun 2025
+ * Desc : Manages BLE server operations for the Wear OS version of the HealthDataDemo app.
+ */
+class BleServerManager @Inject constructor(
+    /*** Context for accessing system services, injected via Hilt. **/
+    val context: Context
+) {
 
+    /*** Tag for logging messages related to this BLE server manager. **/
     var TAG = "BleServerManager"
 
+    /*** UUID for the heart rate service, used for BLE communication. **/
     private val serviceUuid = UUID.fromString("0000180D-0000-1000-8000-00805F9B34FB")
+
+    /*** UUID for the heart rate characteristic, used for BLE communication. **/
     private val characteristicUuid = UUID.fromString("00002A37-0000-1000-8000-00805F9B34FB")
 
+    /*** Mutable state flow holding the current connection state, initialized to false. **/
     private val _connectionState = MutableStateFlow(false)
+
+    /*** Read-only state flow exposing the current connection state to observers. **/
     val connectionState: StateFlow<Boolean> = _connectionState
 
+    /*** BluetoothManager instance for managing BLE operations, initialized from the context. **/
     private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+
+    /*** GATT server instance, nullable to allow creation and cleanup. **/
     private var gattServer: BluetoothGattServer? = null
+
+    /*** BluetoothAdapter instance for BLE advertising, nullable if not available. **/
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+
+    /***
+     * Callback for handling BLE advertising events.
+     */
     private val advertiseCallback = object : AdvertiseCallback() {
+        /*** Logs successful start of advertising. **/
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
             Log.e(
                 TAG,
@@ -47,6 +73,7 @@ class BleServerManager @Inject constructor(val context: Context) {
             )
         }
 
+        /*** Logs failure of advertising with error code. **/
         override fun onStartFailure(errorCode: Int) {
             Log.e(
                 TAG,
@@ -55,6 +82,9 @@ class BleServerManager @Inject constructor(val context: Context) {
         }
     }
 
+    /***
+     * Starts the BLE server and sets up the service, requiring BLUETOOTH_CONNECT permission.
+     */
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun startServer() {
         if (ActivityCompat.checkSelfPermission(
@@ -68,6 +98,7 @@ class BleServerManager @Inject constructor(val context: Context) {
 
         gattServer =
             bluetoothManager.openGattServer(context, object : BluetoothGattServerCallback() {
+                /*** Updates connection state and logs changes. **/
                 override fun onConnectionStateChange(
                     device: BluetoothDevice?,
                     status: Int,
@@ -80,6 +111,7 @@ class BleServerManager @Inject constructor(val context: Context) {
                     )
                 }
 
+                /*** Handles service addition and starts advertising if successful, requiring BLUETOOTH_ADVERTISE permission. **/
                 @RequiresPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
                 override fun onServiceAdded(status: Int, service: BluetoothGattService?) {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
@@ -107,6 +139,9 @@ class BleServerManager @Inject constructor(val context: Context) {
         gattServer?.addService(service) // This triggers onServiceAdded
     }
 
+    /***
+     * Starts BLE advertising, requiring BLUETOOTH_ADVERTISE permission.
+     */
     @RequiresPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
     private fun startAdvertising() {
         if (ActivityCompat.checkSelfPermission(
@@ -131,6 +166,9 @@ class BleServerManager @Inject constructor(val context: Context) {
         )
     }
 
+    /***
+     * Stops the BLE server and advertising, requiring BLUETOOTH_CONNECT permission.
+     */
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun stopServer() {
         if (ActivityCompat.checkSelfPermission(
@@ -148,6 +186,9 @@ class BleServerManager @Inject constructor(val context: Context) {
         Log.e(TAG, "Server stopped at ${System.currentTimeMillis()}")
     }
 
+    /***
+     * Sends heart rate data to connected devices via BLE, requiring BLUETOOTH_CONNECT permission.
+     */
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun sendHeartRate(heartRate: HeartRateData) {
         if (ActivityCompat.checkSelfPermission(
@@ -227,5 +268,4 @@ class BleServerManager @Inject constructor(val context: Context) {
             )
         }
     }
-
 }

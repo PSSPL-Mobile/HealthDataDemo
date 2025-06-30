@@ -17,4 +17,14 @@
     <string name="settingScreen">settingScreen</string>
     <string name="historyScreen">historyScreen</string>
     <string name="appStartNavigation">appStartNavigation</string>
+    <string name="connect_your_device_to_start">Connect your device to start tracking your health data</string>
+    <string name="disconnected_from_watch">Disconnected from watch</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="scanning_for_devices">Scanning for devices…</string>
+    <string name="scan_for_watch">Scan for Watch</string>
+    <string name="connecting_to">Connecting to %1$s</string>
+    <string name="heart_rate_device">Heart Rate Device (%1s)</string>
+    <string name="acknowledge">Acknowledge</string>
+    <string name="alert">Alert</string>
+
 </resources>

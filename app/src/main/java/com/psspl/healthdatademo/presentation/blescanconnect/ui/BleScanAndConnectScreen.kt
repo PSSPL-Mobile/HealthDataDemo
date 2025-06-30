@@ -44,6 +44,7 @@ import com.psspl.healthdatademo.R
 import com.psspl.healthdatademo.presentation.blescanconnect.BleScanConnectViewModel
 import com.psspl.healthdatademo.ui.theme.StringResources
 import com.psspl.healthdatademo.ui.theme.cardBg
+import com.psspl.healthdatademo.ui.theme.lightBlue
 import com.psspl.healthdatademo.ui.theme.screenBg
 
 /***
@@ -115,7 +116,7 @@ fun BleScanAndConnectScreen(
                                 heartRateData.heartRate
                             )
                         else
-                            "Disconnected or No Data",
+                            StringResources.getString(StringResources.heartRate, 0),
                         color = Color.White,
                         style = MaterialTheme.typography.titleLarge,
                         textAlign = TextAlign.Center,
@@ -123,7 +124,7 @@ fun BleScanAndConnectScreen(
                     )
 
                     Text(
-                        text = "Connect your device to start tracking your health data",
+                        text = StringResources.getString(StringResources.connectYourDeviceToStart),
                         color = Color(0xFFB9CBE0),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
@@ -148,17 +149,19 @@ fun BleScanAndConnectScreen(
                                 viewModel.disconnect()
                                 Toast.makeText(
                                     context,
-                                    "Disconnected from watch",
+                                    StringResources.disconnectedFromWatch,
                                     Toast.LENGTH_SHORT
-                                )
-                                    .show()
+                                ).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF558CF6)),
                             modifier = Modifier
                                 .align(Alignment.CenterHorizontally)
                                 .padding(vertical = 8.dp)
                         ) {
-                            Text(text = "Disconnect", color = Color.White)
+                            Text(
+                                text = StringResources.getString(StringResources.disconnect),
+                                color = Color.White
+                            )
                         }
 
                         // Heart Rate Waveform Graph
@@ -172,7 +175,7 @@ fun BleScanAndConnectScreen(
                                 viewModel.startScanning()
                                 Toast.makeText(
                                     context,
-                                    "Scanning for devices...",
+                                    StringResources.scanningForDevices,
                                     Toast.LENGTH_SHORT
                                 ).show()
                             },
@@ -181,7 +184,10 @@ fun BleScanAndConnectScreen(
                                 .align(Alignment.CenterHorizontally)
                                 .padding(vertical = 8.dp)
                         ) {
-                            Text(text = "Scan for Watch", color = Color.White)
+                            Text(
+                                text = StringResources.getString(StringResources.scanForWatch),
+                                color = Color.White
+                            )
                         }
                     }
 
@@ -203,7 +209,13 @@ fun BleScanAndConnectScreen(
                                             viewModel.connectToWearDevice(device)
                                             Toast.makeText(
                                                 context,
-                                                "Connecting to ${device.name ?: "Heart Rate Device"}",
+                                                context.getString(
+                                                    StringResources.connectingTo,
+                                                    device.name ?: context.getString(
+                                                        StringResources.heartRateDevice,
+                                                        device.address
+                                                    )
+                                                ),
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         }),
@@ -215,13 +227,12 @@ fun BleScanAndConnectScreen(
                                     ) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_heart), // R
-                                            contentDescription = "Heart Icon",
-                                            tint = Color(0xFF8AB4F8),
+                                            contentDescription = StringResources.getString(StringResources.heartIcon),
+                                            tint = lightBlue,
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            text = device.name
-                                                ?: "Heart Rate Device (${device.address})",
+                                            text = device.name ?: context.getString(StringResources.heartRateDevice, device.address),
                                             color = Color.White,
                                             style = MaterialTheme.typography.bodyLarge
                                         )
@@ -239,7 +250,7 @@ fun BleScanAndConnectScreen(
                             },
                             title = {
                                 Text(
-                                    text = "Mindfulness Prompt",
+                                    text = StringResources.getString(StringResources.alert),
                                     style = MaterialTheme.typography.bodyLarge,
                                     textAlign = TextAlign.Center
                                 )
@@ -260,7 +271,7 @@ fun BleScanAndConnectScreen(
                                         .fillMaxWidth()
                                         .padding(8.dp)
                                 ) {
-                                    Text("Acknowledge")
+                                    Text(StringResources.getString(StringResources.acknowledge))
                                 }
                             },
                             dismissButton = null,

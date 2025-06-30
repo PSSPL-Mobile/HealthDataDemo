@@ -9,5 +9,6 @@
     <string name="disconnected">Disconnected</string>
 
     <string name="acknowledge">Acknowledge</string>
+    <string name="permissions_required_for_bluetooth">Permissions required for Bluetooth</string>
 
 </resources>

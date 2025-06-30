@@ -32,16 +32,28 @@ import com.psspl.healthdatademo.wear.presentation.theme.green
 import com.psspl.healthdatademo.wear.presentation.theme.screenBg
 import com.psspl.healthdatademo.wear.presentation.theme.white
 
+/***
+ * Name : MainScreen.kt
+ * Author : Prakash Software Pvt Ltd
+ * Date : 30 Jun 2025
+ * Desc : Contains composable functions for the main screen and mindfulness prompt UI in the Wear OS version
+ * of the HealthDataDemo app, integrating with ViewModel and theme resources.
+ * */
 @SuppressLint("BatteryLife")
 @Composable
 fun MainScreen(
+    /*** ViewModel instance for managing UI state, injected via Hilt, defaults to hiltViewModel(). **/
     viewModel: MainViewModel = hiltViewModel(),
+    /*** Context for the current composition, defaults to LocalContext.current. **/
     context: Context = LocalContext.current
 ) {
+    /*** Current heart rate value collected from the ViewModel. **/
     val heartRate = viewModel.heartRate.collectAsState().value
+
+    /*** Current connection state collected from the ViewModel. **/
     val isConnected = viewModel.connectionState.collectAsState().value
 
-    // Start service when the composable is launched
+    /*** Launches an effect to start the heart rate service if BLE permission is granted. **/
     LaunchedEffect(Unit) {
         if (ActivityCompat.checkSelfPermission(
                 context,
@@ -88,13 +100,22 @@ fun MainScreen(
         )
     }
 
-    // Mindfulness Prompt (isolated to avoid recomposing the main UI)
+    /*** Composes the mindfulness prompt UI based on the ViewModel state. **/
     MindfulnessPrompt(viewModel)
 }
 
+/***
+ * ViewModel instance for managing mindfulness prompt state.
+ */
 @Composable
-private fun MindfulnessPrompt(viewModel: MainViewModel) {
+private fun MindfulnessPrompt(
+    /*** ViewModel instance for managing mindfulness prompt state. **/
+    viewModel: MainViewModel
+) {
+    /*** Current visibility state of the mindfulness prompt collected from the ViewModel. **/
     val showMindfulnessPrompt = viewModel.showMindfulnessPrompt.collectAsState().value
+
+    /*** Current message for the mindfulness prompt collected from the ViewModel. **/
     val mindfulnessMessage = viewModel.mindfulnessMessage.collectAsState().value
 
     if (showMindfulnessPrompt) {

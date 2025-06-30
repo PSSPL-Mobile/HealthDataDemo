@@ -16,9 +16,12 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
 
 /***
- * Used to show ECG graph.
+ * Name : ECGStyleGraph.kt
+ * Author : Prakash Software Pvt Ltd
+ * Date : 30 Jun 2025
+ * Desc : Used to show ECG graph.
  * @param dataPoints : Stores bpm points.
- */
+ **/
 @Composable
 fun ECGStyleGraph(dataPoints: List<Float>) {
     val stepX = 6f // Horizontal distance (in pixels) between each ECG data point
