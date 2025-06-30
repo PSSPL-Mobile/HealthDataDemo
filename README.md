@@ -44,6 +44,6 @@
 
 ## **Screenshots**:
    ![Health Data Demo](assets/heart_rate_info_dashboard.png)
-   ![Health Data Demo](assets/watch_dashboard.png)
    ![Health Data Demo](assets/hr_dashboard_after_connected.png)
+   ![Health Data Demo](assets/watch_dashboard.png)
    ![Health Data Demo](assets/watch_dashboard_after_connected.png)
