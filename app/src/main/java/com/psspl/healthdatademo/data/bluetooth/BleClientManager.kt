@@ -207,10 +207,7 @@ class BleClientManager @Inject constructor(
                     _connectionState.value = false
                     _heartRateData.value = null
                     stopKeepAlive()
-                    Log.e(
-                        TAG,
-                        "Disconnected from device: ${gatt?.device?.address} with status: $status at ${System.currentTimeMillis()}"
-                    )
+                    Log.e(TAG, "Disconnected from device: ${gatt?.device?.address} with status: $status at ${System.currentTimeMillis()}")
                     // Attempt to reconnect on common errors
                     if (status == 133 || status == 8) {
                         Log.e(TAG, "Attempting to reconnect to ${gatt?.device?.address}")
