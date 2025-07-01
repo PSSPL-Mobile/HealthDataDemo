@@ -14,10 +14,14 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
+import com.psspl.healthdatademo.data.blockchain.Block
 import com.psspl.healthdatademo.data.model.HeartRateData
+import com.psspl.healthdatademo.data.security.EncryptionUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,8 +36,9 @@ import javax.inject.Inject
  * Name : BleClientManager.kt
  * Author : Prakash Software Pvt Ltd
  * Date : 28 Jun 2025
- * Desc : Manages BLE client operations for heart rate data collection on Wear OS.
+ * Desc : Manages BLE client operations for heart rate data collection on Wear OS with blockchain security and decryption.
  * */
+@RequiresApi(Build.VERSION_CODES.O)
 class BleClientManager @Inject constructor(
     private val context: Context
 ) {
@@ -69,6 +74,52 @@ class BleClientManager @Inject constructor(
     private var scanCallback: ScanCallback? = null // Callback for BLE device scanning
     private var keepAliveJob: Job? = null // Job for periodic keep-alive operations
 
+    class Blockchain {
+        val chain: MutableList<Block> = mutableListOf()
+
+        init {
+            addBlock(Block(0, System.currentTimeMillis(), "Genesis Block", "0"))
+        }
+
+        fun addBlock(newBlock: Block) {
+            if (chain.isNotEmpty()) {
+                newBlock.previousHash = chain.last().hash
+            }
+            newBlock.hash = Block.calculateHash(
+                newBlock.index,
+                newBlock.timestamp,
+                newBlock.heartRateData,
+                newBlock.previousHash
+            )
+            chain.add(newBlock)
+        }
+
+        fun getLatestBlock(): Block = chain.last()
+
+        fun isChainValid(): Boolean {
+            for (i in 1 until chain.size) {
+                val currentBlock = chain[i]
+                val previousBlock = chain[i - 1]
+                if (currentBlock.hash != Block.calculateHash(
+                        currentBlock.index,
+                        currentBlock.timestamp,
+                        currentBlock.heartRateData,
+                        currentBlock.previousHash
+                    )
+                ) {
+                    return false
+                }
+                if (currentBlock.previousHash != previousBlock.hash) {
+                    return false
+                }
+            }
+            return true
+        }
+    }
+
+    // Blockchain instance
+    private val blockchain = Blockchain()
+
     /**
      * Initiates scanning for BLE devices with the specified heart rate service UUID.
      * Requires BLUETOOTH_SCAN permission.
@@ -94,6 +145,7 @@ class BleClientManager @Inject constructor(
                 .setServiceUuid(android.os.ParcelUuid(serviceUuid))
                 .build()
         ) // Filter for devices advertising the heart rate service
+
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build() // High-performance scan settings
@@ -207,7 +259,10 @@ class BleClientManager @Inject constructor(
                     _connectionState.value = false
                     _heartRateData.value = null
                     stopKeepAlive()
-                    Log.e(TAG, "Disconnected from device: ${gatt?.device?.address} with status: $status at ${System.currentTimeMillis()}")
+                    Log.e(
+                        TAG,
+                        "Disconnected from device: ${gatt?.device?.address} with status: $status at ${System.currentTimeMillis()}"
+                    )
                     // Attempt to reconnect on common errors
                     if (status == 133 || status == 8) {
                         Log.e(TAG, "Attempting to reconnect to ${gatt?.device?.address}")
@@ -311,54 +366,34 @@ class BleClientManager @Inject constructor(
                             return
                         }
 
-                        // Validate minimum length for heart rate data format
-                        if (value.size < 13) {
-                            Log.e(
-                                TAG,
-                                "Heart rate value too short for new format: ${value.size} bytes at ${System.currentTimeMillis()}"
+                        val encryptedData = String(value, Charsets.UTF_8)
+                        val decryptedData = EncryptionUtil.decryptData(encryptedData)
+                        decryptedData?.let { data ->
+                            val parts = data.split(",")
+                            val bpmPart = parts[0].split(":")[1].toInt()
+                            val tsPart = parts[1].split(":")[1].toLong()
+                            val alertPart = parts[2].split(":")[1].toBoolean()
+                            val msgPart = parts[3].split(":")[1]
+                            val block = Block(
+                                blockchain.chain.size,
+                                System.currentTimeMillis(),
+                                encryptedData,
+                                blockchain.getLatestBlock().hash
                             )
-                            return
+                            blockchain.addBlock(block)
+                            if (blockchain.isChainValid()) {
+                                _heartRateData.value = HeartRateData(bpmPart, tsPart, alertPart, msgPart)
+                                Log.e(TAG, "Heart rate updated via blockchain: BPM=$bpmPart, Timestamp=$tsPart, isAlert=$alertPart, AlertMsg=$msgPart at ${System.currentTimeMillis()}")
+                            } else {
+                                Log.e(
+                                    TAG,
+                                    "Blockchain validation failed at ${System.currentTimeMillis()}"
+                                )
+                                _heartRateData.value = null
+                            }
+                        } ?: run {
+                            Log.e(TAG, "Decryption failed at ${System.currentTimeMillis()}")
                         }
-
-                        val flags = value[0].toInt()
-                        val isBpmUint16 = (flags and 0x01) == 1 // Bit 0: 0 = UINT8, 1 = UINT16
-
-                        if (!isBpmUint16) {
-                            Log.e(
-                                TAG,
-                                "Unexpected flags: $flags, expected UINT16 format at ${System.currentTimeMillis()}"
-                            )
-                            return
-                        }
-
-                        // Parse BPM (2 bytes, little-endian)
-                        val bpm = (value[1].toInt() and 0xFF) or ((value[2].toInt() and 0xFF) shl 8)
-
-                        // Parse Timestamp (8 bytes, little-endian)
-                        var timestamp = 0L
-                        for (i in 0..7) {
-                            timestamp = timestamp or ((value[3 + i].toLong() and 0xFF) shl (i * 8))
-                        }
-
-                        val isAlert = value[11] == 0x01.toByte()
-                        val alertMsgLength = (value[12].toInt() and 0xFF)
-
-                        if (value.size < 13 + alertMsgLength) {
-                            Log.e(
-                                TAG,
-                                "Heart rate value too short for alertMsg: expected ${13 + alertMsgLength} bytes, got ${value.size} at ${System.currentTimeMillis()}"
-                            )
-                            return
-                        }
-
-                        val alertMsgBytes = value.copyOfRange(13, 13 + alertMsgLength)
-                        val alertMsg = alertMsgBytes.toString(Charsets.UTF_8)
-
-                        _heartRateData.value = HeartRateData(bpm, timestamp, isAlert, alertMsg)
-                        Log.e(
-                            TAG,
-                            "Heart rate updated: BPM=$bpm, Timestamp=$timestamp, isAlert=$isAlert, AlertMsg=$alertMsg at ${System.currentTimeMillis()}"
-                        )
                     }
                 }
             }
@@ -386,58 +421,38 @@ class BleClientManager @Inject constructor(
                             return
                         }
 
-                        if (value.size < 13) {
-                            Log.e(
-                                TAG,
-                                "Heart rate value too short for new format: ${value.size} bytes at ${System.currentTimeMillis()}"
+                        val encryptedData = String(value, Charsets.UTF_8)
+                        val decryptedData = EncryptionUtil.decryptData(encryptedData)
+                        decryptedData?.let { data ->
+                            val parts = data.split(",")
+                            val bpmPart = parts[0].split(":")[1].toInt()
+                            val tsPart = parts[1].split(":")[1].toLong()
+                            val alertPart = parts[2].split(":")[1].toBoolean()
+                            val msgPart = parts[3].split(":")[1]
+                            if (bpmPart !in 30..220) {
+                                Log.e(TAG, "Invalid BPM value: $bpmPart (out of range 30–220) at ${System.currentTimeMillis()}")
+                                return
+                            }
+                            val block = Block(
+                                blockchain.chain.size,
+                                System.currentTimeMillis(),
+                                encryptedData,
+                                blockchain.getLatestBlock().hash
                             )
-                            return
+                            blockchain.addBlock(block)
+                            if (blockchain.isChainValid()) {
+                                _heartRateData.value = HeartRateData(bpmPart, tsPart, alertPart, msgPart)
+                                Log.e(TAG, "Heart rate read via blockchain: BPM=$bpmPart, Timestamp=$tsPart, isAlert=$alertPart, AlertMsg=$msgPart at ${System.currentTimeMillis()}")
+                            } else {
+                                Log.e(
+                                    TAG,
+                                    "Blockchain validation failed at ${System.currentTimeMillis()}"
+                                )
+                                _heartRateData.value = null
+                            }
+                        } ?: run {
+                            Log.e(TAG, "Decryption failed at ${System.currentTimeMillis()}")
                         }
-
-                        val flags = value[0].toInt()
-                        val isBpmUint16 = (flags and 0x01) == 1
-
-                        if (!isBpmUint16) {
-                            Log.e(
-                                TAG,
-                                "Unexpected flags: $flags, expected UINT16 format at ${System.currentTimeMillis()}"
-                            )
-                            return
-                        }
-
-                        val bpm = (value[1].toInt() and 0xFF) or ((value[2].toInt() and 0xFF) shl 8)
-                        var timestamp = 0L
-                        for (i in 0..7) {
-                            timestamp = timestamp or ((value[3 + i].toLong() and 0xFF) shl (i * 8))
-                        }
-
-                        val isAlert = value[11] == 0x01.toByte()
-                        val alertMsgLength = (value[12].toInt() and 0xFF)
-
-                        if (value.size < 13 + alertMsgLength) {
-                            Log.e(
-                                TAG,
-                                "Heart rate value too short for alertMsg: expected ${13 + alertMsgLength} bytes, got ${value.size} at ${System.currentTimeMillis()}"
-                            )
-                            return
-                        }
-
-                        val alertMsgBytes = value.copyOfRange(13, 13 + alertMsgLength)
-                        val alertMsg = alertMsgBytes.toString(Charsets.UTF_8)
-
-                        if (bpm !in 30..220) {
-                            Log.e(
-                                TAG,
-                                "Invalid BPM value: $bpm (out of range 30–220) at ${System.currentTimeMillis()}"
-                            )
-                            return
-                        }
-
-                        _heartRateData.value = HeartRateData(bpm, timestamp, isAlert, alertMsg)
-                        Log.e(
-                            TAG,
-                            "Heart rate read: BPM=$bpm, Timestamp=$timestamp, isAlert=$isAlert, AlertMsg=$alertMsg at ${System.currentTimeMillis()}"
-                        )
                     }
                 }
             }

@@ -34,9 +34,7 @@ object AppModule {
      */
     @Provides
     @Singleton
-    fun provideBleClientManager(
-        @ApplicationContext context: Context
-    ): BleClientManager {
+    fun provideBleClientManager(@ApplicationContext context: Context): BleClientManager {
         return BleClientManager(context)
     }
 

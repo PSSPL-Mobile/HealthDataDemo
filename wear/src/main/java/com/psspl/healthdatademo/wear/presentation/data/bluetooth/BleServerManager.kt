@@ -20,16 +20,21 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import com.psspl.healthdatademo.wear.presentation.data.model.HeartRateData
+import com.psspl.healthdatademo.wear.presentation.theme.StringResources
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.util.UUID
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
+import java.security.Key
+import java.util.Base64
 import javax.inject.Inject
 
 /***
  * Name : BleServerManager.kt
  * Author : Prakash Software Pvt Ltd
  * Date : 30 Jun 2025
- * Desc : Manages BLE server operations for the Wear OS version of the HealthDataDemo app.
+ * Desc : Manages BLE server operations for the Wear OS version of the HealthDataDemo app with encryption.
  */
 class BleServerManager @Inject constructor(
     /*** Context for accessing system services, injected via Hilt. **/
@@ -61,9 +66,10 @@ class BleServerManager @Inject constructor(
     /*** BluetoothAdapter instance for BLE advertising, nullable if not available. **/
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
-    /***
-     * Callback for handling BLE advertising events.
-     */
+    /*** Encryption key and utility (demo key for simplicity). **/
+    private val keySpec: Key = SecretKeySpec(StringResources.secretKey, "AES")
+
+    /*** Callback for handling BLE advertising events. **/
     private val advertiseCallback = object : AdvertiseCallback() {
         /*** Logs successful start of advertising. **/
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
@@ -80,6 +86,16 @@ class BleServerManager @Inject constructor(
                 "Advertising failed with error: $errorCode at ${System.currentTimeMillis()}"
             )
         }
+    }
+
+    /***
+     * Used for encrypt data.
+     */
+    private fun encryptData(data: String): String {
+        val cipher = Cipher.getInstance(StringResources.transformationAlgo)
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec)
+        val encryptedBytes = cipher.doFinal(data.toByteArray())
+        return Base64.getEncoder().encodeToString(encryptedBytes)
     }
 
     /***
@@ -214,40 +230,17 @@ class BleServerManager @Inject constructor(
         val bpm = if (heartRate.bpm in 30..220) heartRate.bpm else 0 // Fallback to 60 if invalid
         val timestamp = heartRate.timestamp
         val isAlert = heartRate.isAlert
-        val alertMsg =
-            heartRate.alertMsg.take(20) // Truncate to 20 bytes to fit in a single BLE packet
+        val alertMsg = heartRate.alertMsg.take(20) // Truncate to 20 bytes to fit in a single BLE packet
 
-        // Serialize HeartRateData into a byte array
-        // Format: [flags (1 byte), bpm (2 bytes), timestamp (8 bytes), isAlert (1 byte), alertMsgLength (1 byte), alertMsg (variable)]
-        val alertMsgBytes = alertMsg.toByteArray(Charsets.UTF_8) // Convert string to UTF-8 bytes
-        val alertMsgLength =
-            alertMsgBytes.size.coerceAtMost(255).toByte() // Ensure length fits in 1 byte
-        val data = ByteArray(13 + alertMsgLength) // 1 + 2 + 8 + 1 + 1 + alertMsgLength
+        // Serialize HeartRateData into a string for encryption
+        val dataString = "BPM:$bpm,TS:$timestamp,Alert:$isAlert,Msg:$alertMsg"
+        val encryptedData = encryptData(dataString)
 
-        // Flags: Indicate UINT16 BPM
-        data[0] = 0x01 // Bit 0 = 1 for UINT16 BPM
-        // BPM (2 bytes, little-endian)
-        data[1] = (bpm and 0xFF).toByte() // Lower byte
-        data[2] = ((bpm shr 8) and 0xFF).toByte() // Upper byte
-        // Timestamp (8 bytes, little-endian)
-        for (i in 0..7) {
-            data[3 + i] = ((timestamp shr (i * 8)) and 0xFF).toByte()
-        }
-        // isAlert (1 byte)
-        data[11] = if (isAlert) 0x01 else 0x00
-        // alertMsg length (1 byte)
-        data[12] = alertMsgLength
-        // alertMsg (variable length)
-        System.arraycopy(alertMsgBytes, 0, data, 13, alertMsgLength.toInt())
-
-        characteristic.value = data
+        // Set encrypted data to characteristic
+        characteristic.value = encryptedData.toByteArray(Charsets.UTF_8)
         Log.e(
             TAG,
-            "Set characteristic value: ${
-                data.joinToString {
-                    it.toInt().toString(16).padStart(2, '0')
-                }
-            } at ${System.currentTimeMillis()}"
+            "Set encrypted characteristic value: $encryptedData at ${System.currentTimeMillis()}"
         )
 
         // Use BluetoothManager to get connected devices
@@ -264,7 +257,7 @@ class BleServerManager @Inject constructor(
             gattServer?.notifyCharacteristicChanged(device, characteristic, false)
             Log.e(
                 TAG,
-                "Notifying heart rate data: BPM=$bpm, Timestamp=$timestamp, isAlert=$isAlert, AlertMsg=$alertMsg to ${device.address} at ${System.currentTimeMillis()}"
+                "Notifying encrypted heart rate data to ${device.address} at ${System.currentTimeMillis()}"
             )
         }
     }

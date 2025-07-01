@@ -47,6 +47,12 @@ object StringResources {
      */
     val permissionsRequiredForBluetooth = R.string.permissions_required_for_bluetooth
 
+    // Algo used for decrypt and encrypt.
+    val transformationAlgo = "AES"
+
+    //Secret key for decrypt and encrypt.
+    val secretKey = "MySecretKey12345".toByteArray()
+
     /**
      * Composable function to retrieve a localized string resource with optional format arguments.
      * @param resId The resource ID of the string to retrieve.
