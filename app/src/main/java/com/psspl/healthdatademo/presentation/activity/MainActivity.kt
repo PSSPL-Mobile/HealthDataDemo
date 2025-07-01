@@ -102,8 +102,7 @@ class MainActivity : ComponentActivity() {
             if (permissionsMap.values.all { it }) {
                 //
             } else {
-                Toast.makeText(this, StringResources.permissionsRequired, Toast.LENGTH_SHORT)
-                    .show()
+                Toast.makeText(this, StringResources.permissionsRequired, Toast.LENGTH_SHORT).show()
             }
         }
 
