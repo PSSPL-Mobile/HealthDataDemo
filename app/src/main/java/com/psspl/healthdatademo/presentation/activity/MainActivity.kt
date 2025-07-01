@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
     private val permissionMultiLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissionsMap ->
             if (permissionsMap.values.all { it }) {
-                Toast.makeText(this, StringResources.permissionsGranted, Toast.LENGTH_SHORT).show()
+                //
             } else {
                 Toast.makeText(this, StringResources.permissionsRequired, Toast.LENGTH_SHORT)
                     .show()
